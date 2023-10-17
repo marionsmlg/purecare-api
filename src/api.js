@@ -26,75 +26,56 @@ async function handleRequest(request, response) {
     response.setHeader("Access-Control-Allow-Credentials", true);
     const body = await readBody(request);
 
+    const apiEndpoints = {
+      "/api/recipe-category": "recipe_category",
+      "/api/beauty-issue": "beauty_issue",
+      "/api/physical-trait": "physical_trait",
+    };
+
     if (requestURLData.pathname === "/") {
       response.statusCode = 200;
       response.end("Status : ok");
     }
 
     if (request.method === "GET") {
-      const apiEndpoints = {
-        "/api/recipe": "recipe",
-        "/api/recipe-category": "recipe_category",
-        "/api/ingredient": "ingredient",
-        "/api/beauty-issue": "beauty_issue",
-        "/api/physical-trait": "physical_trait",
-        "/api/product-allergen": "product_allergen",
-        "/api/product-benefit": "product_benefit",
-        "/api/product-texture-type": "product_texture_type",
-        "/api/recipe-ingredient": "recipe__ingredient",
-        "/api/recipe-step": "recipe__step",
-        "/api/recipe-product-benefit": "recipe__product_benefit",
-        "/api/recipe-product-allergen": "recipe__product_allergen",
-        "/api/recipe-beauty-issue": "recipe__beauty_issue",
-        "/api/recipe-physical-trait": "recipe__physical_trait",
-        "/api/user-physical-trait-fetch": "user_physical_trait",
-        "/api/user-physical-trait": "user_physical_trait",
-        "/api/user-hair-issue": "user__hair_issue",
-        "/api/user-skin-issue": "user__skin_issue",
-        "/api/user": "user__physical_trait",
-        "/api/quiz-data-exists": "physical_trait",
-      };
+      const searchParams = Object.fromEntries(requestURLData.searchParams);
+      let data;
 
       for (const path in apiEndpoints) {
         if (requestURLData.pathname === path) {
           const tableName = apiEndpoints[path];
-          const searchParams = Object.fromEntries(requestURLData.searchParams);
-          let data;
-
-          if (path === "/api/recipe") {
-            data = searchParams.id
-              ? await fetchRecipeById(searchParams)
-              : await fetchDataAndJoinLeft(searchParams);
-          } else if (path === "/api/recipe-ingredient") {
-            data = await fetchRecipeIngredients(searchParams);
-          } else if (path === "/api/recipe-step") {
-            data = await fetchRecipeSteps(searchParams);
-          } else if (path === "/api/recipe-product-benefit") {
-            data = await fetchRecipeBenefits(searchParams);
-          } else if (path === "/api/recipe-product-allergen") {
-            data = await fetchRecipeAllergens(searchParams);
-          } else if (path === "/api/recipe-beauty-issue") {
-            data = await fetchRecipeBeautyIssues(searchParams);
-          } else if (path === "/api/recipe-physical-trait") {
-            data = await fetchRecipePhysicalTrait(searchParams);
-          } else if (path === "/api/user-physical-trait-fetch") {
-            data = await fetchUserPhysicalTraits(searchParams);
-          } else if (path === "/api/user-hair-issue") {
-            data = await fetchUserHairIssueId(searchParams);
-          } else if (path === "/api/user-skin-issue") {
-            data = await fetchUserSkinIssueId(searchParams);
-          } else if (path === "/api/user") {
-            data = await userExists(searchParams);
-          } else if (path === "/api/quiz-data-exists") {
-            data = await physicalTraitsAndBeautyIssuesExists(searchParams);
-          } else {
-            data = await fetchDataFromTable(tableName);
-          }
-          response.statusCode = 200;
-          response.end(JSON.stringify(data));
-          return;
+          data = await fetchDataFromTable(tableName);
         }
       }
+      if (requestURLData.pathname === "/api/recipe") {
+        data = searchParams.id
+          ? await fetchRecipeById(searchParams)
+          : await fetchDataAndJoinLeft(searchParams);
+      } else if (requestURLData.pathname === "/api/recipe-ingredient") {
+        data = await fetchRecipeIngredients(searchParams);
+      } else if (requestURLData.pathname === "/api/recipe-step") {
+        data = await fetchRecipeSteps(searchParams);
+      } else if (requestURLData.pathname === "/api/recipe-product-benefit") {
+        data = await fetchRecipeBenefits(searchParams);
+      } else if (requestURLData.pathname === "/api/recipe-product-allergen") {
+        data = await fetchRecipeAllergens(searchParams);
+      } else if (requestURLData.pathname === "/api/recipe-beauty-issue") {
+        data = await fetchRecipeBeautyIssues(searchParams);
+      } else if (requestURLData.pathname === "/api/recipe-physical-trait") {
+        data = await fetchRecipePhysicalTrait(searchParams);
+      } else if (requestURLData.pathname === "/api/user-physical-trait-fetch") {
+        data = await fetchUserPhysicalTraits(searchParams);
+      } else if (requestURLData.pathname === "/api/user-hair-issue") {
+        data = await fetchUserHairIssueId(searchParams);
+      } else if (requestURLData.pathname === "/api/user-skin-issue") {
+        data = await fetchUserSkinIssueId(searchParams);
+      } else if (requestURLData.pathname === "/api/user") {
+        data = await userExists(searchParams);
+      } else if (requestURLData.pathname === "/api/quiz-data-exists") {
+        data = await physicalTraitsAndBeautyIssuesExists(searchParams);
+      }
+      response.statusCode = 200;
+      response.end(JSON.stringify(data));
     } else if (request.method === "POST") {
       const form = JSON.parse(body);
       console.log(form);
