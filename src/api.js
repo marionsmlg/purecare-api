@@ -1,5 +1,6 @@
 import http from "http";
 import db from "./scripts/insertDataInDatabase.js";
+import { convertFormDataToJSON, readBody } from "./utils.js";
 
 const PORT = 3000;
 const server = http.createServer(handleRequest);
@@ -16,10 +17,22 @@ async function handleRequest(request, response) {
       url: request.url,
       requestURLData,
     });
+    response.setHeader("Access-Control-Allow-Origin", "*");
+    response.setHeader(
+      "Access-Control-Allow-Methods",
+      "GET, POST, PUT, DELETE, OPTIONS"
+    );
+    response.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    response.setHeader("Access-Control-Allow-Credentials", true);
+    const body = await readBody(request);
+
+    if (requestURLData.pathname === "/") {
+      response.statusCode = 200;
+      response.end("Status : ok");
+    }
 
     if (request.method === "GET") {
       const apiEndpoints = {
-        "/api/test": "recipe",
         "/api/recipe": "recipe",
         "/api/recipe-category": "recipe_category",
         "/api/ingredient": "ingredient",
@@ -40,8 +53,6 @@ async function handleRequest(request, response) {
         "/api/user-skin-issue": "user__skin_issue",
         "/api/user": "user__physical_trait",
         "/api/quiz-data-exists": "physical_trait",
-        "/api/user-update-beauty-profile": "user_physical_trait",
-        "/api/user-delete": "user_physical_trait",
       };
 
       for (const path in apiEndpoints) {
@@ -68,39 +79,6 @@ async function handleRequest(request, response) {
             data = await fetchRecipePhysicalTrait(searchParams);
           } else if (path === "/api/user-physical-trait-fetch") {
             data = await fetchUserPhysicalTraits(searchParams);
-          } else if (path === "/api/user-physical-trait") {
-            await insertUserPhysicalTrait(searchParams);
-            response.setHeader("Access-Control-Allow-Origin", "*");
-            response.setHeader(
-              "Access-Control-Allow-Methods",
-              "GET, POST, PUT, DELETE"
-            );
-            response.setHeader("Access-Control-Allow-Headers", "*");
-            response.statusCode = 302;
-            response.end();
-            return;
-          } else if (path === "/api/user-update-beauty-profile") {
-            await updateUserBeautyProfile(searchParams);
-            response.setHeader("Access-Control-Allow-Origin", "*");
-            response.setHeader(
-              "Access-Control-Allow-Methods",
-              "GET, POST, PUT, DELETE"
-            );
-            response.setHeader("Access-Control-Allow-Headers", "*");
-            response.statusCode = 302;
-            response.end();
-            return;
-          } else if (path === "/api/user-delete") {
-            await deleteUserBeautyProfile(searchParams);
-            response.setHeader("Access-Control-Allow-Origin", "*");
-            response.setHeader(
-              "Access-Control-Allow-Methods",
-              "GET, POST, PUT, DELETE"
-            );
-            response.setHeader("Access-Control-Allow-Headers", "*");
-            response.statusCode = 302;
-            response.end();
-            return;
           } else if (path === "/api/user-hair-issue") {
             data = await fetchUserHairIssueId(searchParams);
           } else if (path === "/api/user-skin-issue") {
@@ -112,16 +90,38 @@ async function handleRequest(request, response) {
           } else {
             data = await fetchDataFromTable(tableName);
           }
-          response.setHeader("Access-Control-Allow-Origin", "*");
-          response.setHeader(
-            "Access-Control-Allow-Methods",
-            "GET, POST, PUT, DELETE"
-          );
-          response.setHeader("Access-Control-Allow-Headers", "*");
           response.statusCode = 200;
           response.end(JSON.stringify(data));
           return;
         }
+      }
+    } else if (request.method === "POST") {
+      const form = JSON.parse(body);
+      console.log(form);
+      if (requestURLData.pathname === "/api/v1/users") {
+        await insertUserPhysicalTrait(form);
+        response.statusCode = 302;
+        response.end();
+      }
+    } else if (request.method === "OPTIONS") {
+      // Répondre à la pré-vérification OPTIONS
+      response.statusCode = 200;
+      response.end();
+    } else if (request.method === "PUT") {
+      const form = JSON.parse(body);
+      console.log(form);
+      if (requestURLData.pathname === "/api/v1/users") {
+        await updateUserBeautyProfile(form);
+        response.statusCode = 302;
+        response.end();
+      }
+    } else if (request.method === "DELETE") {
+      const form = JSON.parse(body);
+      console.log(form);
+      if (requestURLData.pathname === "/api/v1/users") {
+        await deleteUserBeautyProfile(form);
+        response.statusCode = 302;
+        response.end();
       }
     } else {
       response.statusCode = 404;
@@ -198,56 +198,54 @@ async function fetchUserPhysicalTraits(searchParams) {
     .where("user_id", searchParams.user_id);
 }
 
-async function deleteUserBeautyProfile(searchParams) {
-  await db("user_physical_trait").where("user_id", searchParams.user_id).del();
-  await db("user__skin_issue").where("user_id", searchParams.user_id).del();
-  await db("user__hair_issue").where("user_id", searchParams.user_id).del();
+async function deleteUserBeautyProfile(form) {
+  await db("user_physical_trait").where("user_id", form.user_id).del();
+  await db("user__skin_issue").where("user_id", form.user_id).del();
+  await db("user__hair_issue").where("user_id", form.user_id).del();
   return;
 }
 
-async function updateUserBeautyProfile(searchParams) {
-  const arrOfSkinIssueIds = searchParams.skin_issue_id.split(",");
-  const arrOfHairIssueIds = searchParams.hair_issue_id.split(",");
-  await db("user_physical_trait")
-    .where("user_id", searchParams.user_id)
-    .update({
-      skin_type_id: searchParams.skin_type_id,
-      hair_type_id: searchParams.hair_type_id,
-    });
-  await db("user__skin_issue").where("user_id", searchParams.user_id).del();
+async function updateUserBeautyProfile(form) {
+  const arrOfSkinIssueIds = form.skin_issue_id.split(",");
+  const arrOfHairIssueIds = form.hair_issue_id.split(",");
+  await db("user_physical_trait").where("user_id", form.user_id).update({
+    skin_type_id: form.skin_type_id,
+    hair_type_id: form.hair_type_id,
+  });
+  await db("user__skin_issue").where("user_id", form.user_id).del();
   for (const skinIssueId of arrOfSkinIssueIds) {
     await db("user__skin_issue").insert({
-      user_id: searchParams.user_id,
+      user_id: form.user_id,
       skin_issue_id: skinIssueId,
     });
   }
-  await db("user__hair_issue").where("user_id", searchParams.user_id).del();
+  await db("user__hair_issue").where("user_id", form.user_id).del();
   for (const hairIssueId of arrOfHairIssueIds) {
     await db("user__hair_issue").insert({
-      user_id: searchParams.user_id,
+      user_id: form.user_id,
       hair_issue_id: hairIssueId,
     });
   }
   return;
 }
 
-async function insertUserPhysicalTrait(searchParams) {
-  const arrOfSkinIssueIds = searchParams.skin_issue_id.split(",");
-  const arrOfHairIssueIds = searchParams.hair_issue_id.split(",");
+async function insertUserPhysicalTrait(form) {
+  const arrOfSkinIssueIds = form.skin_issue_id.split(",");
+  const arrOfHairIssueIds = form.hair_issue_id.split(",");
   await db("user_physical_trait").insert({
-    user_id: searchParams.user_id,
-    skin_type_id: searchParams.skin_type_id,
-    hair_type_id: searchParams.hair_type_id,
+    user_id: form.user_id,
+    skin_type_id: form.skin_type_id,
+    hair_type_id: form.hair_type_id,
   });
   for (const skinIssueId of arrOfSkinIssueIds) {
     await db("user__skin_issue").insert({
-      user_id: searchParams.user_id,
+      user_id: form.user_id,
       skin_issue_id: skinIssueId,
     });
   }
   for (const hairIssueId of arrOfHairIssueIds) {
     await db("user__hair_issue").insert({
-      user_id: searchParams.user_id,
+      user_id: form.user_id,
       hair_issue_id: hairIssueId,
     });
   }
