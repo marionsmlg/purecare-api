@@ -54,8 +54,33 @@ async function handleRequest(request, response) {
           data = await fetchDataFromTable(tableName);
         }
       }
-      if (requestURLData.pathname === "/api/recipe") {
-        data = await fetchRecipes(searchParams);
+      if (requestURLData.pathname === "/api/v1/recipes") {
+        if (searchParams.physical_trait_id && searchParams.beauty_issue_id) {
+          const arrOfPhysicalTraitIds =
+            searchParams.physical_trait_id.split(",");
+          const arrOfBeautyIssueIds = searchParams.beauty_issue_id.split(",");
+          data = await fetchRecipes(
+            searchParams,
+            arrOfPhysicalTraitIds,
+            arrOfBeautyIssueIds
+          );
+        } else {
+          const arrOfSkinTypeIds = searchParams.skin_type_id.split(",");
+          const arrOfSkinIssueIds = searchParams.skin_issue_id.split(",");
+          const arrOfHairTypeIds = searchParams.hair_type_id.split(",");
+          const arrOfHairIssueIds = searchParams.hair_issue_id.split(",");
+          const skinRecipes = await fetchRecipes(
+            searchParams,
+            arrOfSkinTypeIds,
+            arrOfSkinIssueIds
+          );
+          const hairRecipes = await fetchRecipes(
+            searchParams,
+            arrOfHairTypeIds,
+            arrOfHairIssueIds
+          );
+          data = { skinRecipe: skinRecipes, hairRecipe: hairRecipes };
+        }
       } else if (requestURLData.pathname === "/api/user") {
         data = await userExists(searchParams);
       } else if (requestURLData.pathname === "/api/quiz-data-exists") {
@@ -363,10 +388,11 @@ async function fetchRecipePhysicalTrait(searchParams) {
     .orderBy("name");
 }
 
-async function fetchRecipes(searchParams) {
-  const arrOfPhysicalTraitIds = searchParams.physical_trait_id.split(",");
-  const arrOfBeautyIssueIds = searchParams.beauty_issue_id.split(",");
-  console.log({ arrOfPhysicalTraitIds, arrOfBeautyIssueIds });
+async function fetchRecipes(
+  searchParams,
+  arrOfPhysicalTraitIds,
+  arrOfBeautyIssueIds
+) {
   let query = db("recipe")
     .select(
       "recipe.id",
