@@ -55,31 +55,39 @@ async function handleRequest(request, response) {
         }
       }
       if (requestURLData.pathname === "/api/recipe") {
-        data = searchParams.id
-          ? await fetchRecipeById(searchParams)
-          : await fetchDataAndJoinLeft(searchParams);
-      } else if (requestURLData.pathname === "/api/recipe-ingredient") {
-        data = await fetchRecipeIngredients(searchParams);
-      } else if (requestURLData.pathname === "/api/recipe-step") {
-        data = await fetchRecipeSteps(searchParams);
-      } else if (requestURLData.pathname === "/api/recipe-product-benefit") {
-        data = await fetchRecipeBenefits(searchParams);
-      } else if (requestURLData.pathname === "/api/recipe-product-allergen") {
-        data = await fetchRecipeAllergens(searchParams);
-      } else if (requestURLData.pathname === "/api/recipe-beauty-issue") {
-        data = await fetchRecipeBeautyIssues(searchParams);
-      } else if (requestURLData.pathname === "/api/recipe-physical-trait") {
-        data = await fetchRecipePhysicalTrait(searchParams);
-      } else if (requestURLData.pathname === "/api/user-physical-trait-fetch") {
-        data = await fetchUserPhysicalTraits(searchParams);
-      } else if (requestURLData.pathname === "/api/user-hair-issue") {
-        data = await fetchUserHairIssueId(searchParams);
-      } else if (requestURLData.pathname === "/api/user-skin-issue") {
-        data = await fetchUserSkinIssueId(searchParams);
+        data = await fetchRecipes(searchParams);
       } else if (requestURLData.pathname === "/api/user") {
         data = await userExists(searchParams);
       } else if (requestURLData.pathname === "/api/quiz-data-exists") {
         data = await physicalTraitsAndBeautyIssuesExists(searchParams);
+      } else if (requestURLData.pathname === "/api/v1/users") {
+        const userPhysicalTrait = await fetchUserPhysicalTraits(searchParams);
+        const userHairIssue = await fetchUserHairIssueId(searchParams);
+        const userSkinIssue = await fetchUserSkinIssueId(searchParams);
+        data = {
+          physicalTrait: userPhysicalTrait,
+          hairIssue: userHairIssue,
+          skinIssue: userSkinIssue,
+        };
+      } else if (requestURLData.pathname === "/api/v1/recipe") {
+        const recipe = await fetchRecipeById(searchParams);
+        const recipePhysicalTrait = await fetchRecipePhysicalTrait(
+          searchParams
+        );
+        const recipeBeautyIssue = await fetchRecipeBeautyIssues(searchParams);
+        const recipeIngredient = await fetchRecipeIngredients(searchParams);
+        const recipeAllergen = await fetchRecipeAllergens(searchParams);
+        const recipeStep = await fetchRecipeSteps(searchParams);
+        const recipeBenefit = await fetchRecipeBenefits(searchParams);
+        data = {
+          recipe: recipe,
+          physicalTrait: recipePhysicalTrait,
+          beautyIssue: recipeBeautyIssue,
+          ingredient: recipeIngredient,
+          allergen: recipeAllergen,
+          step: recipeStep,
+          benefit: recipeBenefit,
+        };
       }
       response.statusCode = 200;
       response.end(JSON.stringify(data));
@@ -106,7 +114,7 @@ async function handleRequest(request, response) {
           response.end();
         } catch (error) {
           console.error(error);
-          response.statusCode = 403;
+          response.statusCode = 401;
           response.end("Forbidden");
         }
       }
@@ -134,7 +142,7 @@ async function handleRequest(request, response) {
           response.end();
         } catch (error) {
           console.error(error);
-          response.statusCode = 403;
+          response.statusCode = 401;
           response.end("Forbidden");
         }
       }
@@ -158,7 +166,7 @@ async function handleRequest(request, response) {
           response.end();
         } catch (error) {
           console.error(error);
-          response.statusCode = 403;
+          response.statusCode = 401;
           response.end("Forbidden");
         }
       }
@@ -355,7 +363,7 @@ async function fetchRecipePhysicalTrait(searchParams) {
     .orderBy("name");
 }
 
-async function fetchDataAndJoinLeft(searchParams) {
+async function fetchRecipes(searchParams) {
   const arrOfPhysicalTraitIds = searchParams.physical_trait_id.split(",");
   const arrOfBeautyIssueIds = searchParams.beauty_issue_id.split(",");
   console.log({ arrOfPhysicalTraitIds, arrOfBeautyIssueIds });
@@ -424,5 +432,5 @@ async function fetchRecipeById(searchParams) {
       "product_texture_type.id"
     )
     .join("recipe_category", "recipe.recipe_category_id", "recipe_category.id")
-    .where("recipe.id", searchParams.id);
+    .where("recipe.id", searchParams.recipe_id);
 }
