@@ -1,5 +1,4 @@
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
+import { initializeApp } from "firebase-admin/app";
 import "dotenv/config";
 
 const firebaseConfig = {
@@ -13,4 +12,3 @@ const firebaseConfig = {
 };
 
 export const firebaseApp = initializeApp(firebaseConfig);
-const analytics = getAnalytics(firebaseApp);

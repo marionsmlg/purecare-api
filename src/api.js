@@ -1,7 +1,8 @@
 import http from "http";
 import db from "./scripts/insertDataInDatabase.js";
-import { convertFormDataToJSON, readBody } from "./utils.js";
-
+import { readBody } from "./utils.js";
+import { firebaseApp } from "./firebaseconfig.js";
+import { getAuth } from "firebase-admin/auth";
 const PORT = 3000;
 const server = http.createServer(handleRequest);
 
@@ -22,8 +23,12 @@ async function handleRequest(request, response) {
       "Access-Control-Allow-Methods",
       "GET, POST, PUT, DELETE, OPTIONS"
     );
-    response.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    response.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization"
+    );
     response.setHeader("Access-Control-Allow-Credentials", true);
+
     const body = await readBody(request);
 
     const apiEndpoints = {
@@ -36,6 +41,8 @@ async function handleRequest(request, response) {
       response.statusCode = 200;
       response.end("Status : ok");
     }
+
+    const token = request.headers.authorization;
 
     if (request.method === "GET") {
       const searchParams = Object.fromEntries(requestURLData.searchParams);
@@ -78,31 +85,82 @@ async function handleRequest(request, response) {
       response.end(JSON.stringify(data));
     } else if (request.method === "POST") {
       const form = JSON.parse(body);
-      console.log(form);
       if (requestURLData.pathname === "/api/v1/users") {
-        await insertUserPhysicalTrait(form);
-        response.statusCode = 302;
-        response.end();
+        if (!token || !token.startsWith("Bearer ")) {
+          response.statusCode = 401;
+          response.end("Missing token");
+
+          return;
+        }
+
+        const userToken = token.split("Bearer ")[1];
+
+        try {
+          const decodedToken = await getAuth(firebaseApp).verifyIdToken(
+            userToken
+          );
+          const currentUserId = decodedToken.uid;
+          await insertUserPhysicalTrait(form, currentUserId);
+
+          response.statusCode = 302;
+          response.end();
+        } catch (error) {
+          console.error(error);
+          response.statusCode = 403;
+          response.end("Forbidden");
+        }
       }
     } else if (request.method === "OPTIONS") {
-      // Répondre à la pré-vérification OPTIONS
       response.statusCode = 200;
       response.end();
     } else if (request.method === "PUT") {
       const form = JSON.parse(body);
-      console.log(form);
       if (requestURLData.pathname === "/api/v1/users") {
-        await updateUserBeautyProfile(form);
-        response.statusCode = 302;
-        response.end();
+        if (!token || !token.startsWith("Bearer ")) {
+          response.statusCode = 401;
+          response.end("Missing token");
+
+          return;
+        }
+        const userToken = token.split("Bearer ")[1];
+
+        try {
+          const decodedToken = await getAuth(firebaseApp).verifyIdToken(
+            userToken
+          );
+          const currentUserId = decodedToken.uid;
+          await updateUserBeautyProfile(form, currentUserId);
+          response.statusCode = 302;
+          response.end();
+        } catch (error) {
+          console.error(error);
+          response.statusCode = 403;
+          response.end("Forbidden");
+        }
       }
     } else if (request.method === "DELETE") {
-      const form = JSON.parse(body);
-      console.log(form);
       if (requestURLData.pathname === "/api/v1/users") {
-        await deleteUserBeautyProfile(form);
-        response.statusCode = 302;
-        response.end();
+        if (!token || !token.startsWith("Bearer ")) {
+          response.statusCode = 401;
+          response.end("Missing token");
+
+          return;
+        }
+        const userToken = token.split("Bearer ")[1];
+
+        try {
+          const decodedToken = await getAuth(firebaseApp).verifyIdToken(
+            userToken
+          );
+          const currentUserId = decodedToken.uid;
+          await deleteUserBeautyProfile(currentUserId);
+          response.statusCode = 302;
+          response.end();
+        } catch (error) {
+          console.error(error);
+          response.statusCode = 403;
+          response.end("Forbidden");
+        }
       }
     } else {
       response.statusCode = 404;
@@ -179,54 +237,54 @@ async function fetchUserPhysicalTraits(searchParams) {
     .where("user_id", searchParams.user_id);
 }
 
-async function deleteUserBeautyProfile(form) {
-  await db("user_physical_trait").where("user_id", form.user_id).del();
-  await db("user__skin_issue").where("user_id", form.user_id).del();
-  await db("user__hair_issue").where("user_id", form.user_id).del();
+async function deleteUserBeautyProfile(userId) {
+  await db("user_physical_trait").where("user_id", userId).del();
+  await db("user__skin_issue").where("user_id", userId).del();
+  await db("user__hair_issue").where("user_id", userId).del();
   return;
 }
 
-async function updateUserBeautyProfile(form) {
+async function updateUserBeautyProfile(form, userId) {
   const arrOfSkinIssueIds = form.skin_issue_id.split(",");
   const arrOfHairIssueIds = form.hair_issue_id.split(",");
-  await db("user_physical_trait").where("user_id", form.user_id).update({
+  await db("user_physical_trait").where("user_id", userId).update({
     skin_type_id: form.skin_type_id,
     hair_type_id: form.hair_type_id,
   });
-  await db("user__skin_issue").where("user_id", form.user_id).del();
+  await db("user__skin_issue").where("user_id", userId).del();
   for (const skinIssueId of arrOfSkinIssueIds) {
     await db("user__skin_issue").insert({
-      user_id: form.user_id,
+      user_id: userId,
       skin_issue_id: skinIssueId,
     });
   }
-  await db("user__hair_issue").where("user_id", form.user_id).del();
+  await db("user__hair_issue").where("user_id", userId).del();
   for (const hairIssueId of arrOfHairIssueIds) {
     await db("user__hair_issue").insert({
-      user_id: form.user_id,
+      user_id: userId,
       hair_issue_id: hairIssueId,
     });
   }
   return;
 }
 
-async function insertUserPhysicalTrait(form) {
+async function insertUserPhysicalTrait(form, userId) {
   const arrOfSkinIssueIds = form.skin_issue_id.split(",");
   const arrOfHairIssueIds = form.hair_issue_id.split(",");
   await db("user_physical_trait").insert({
-    user_id: form.user_id,
+    user_id: userId,
     skin_type_id: form.skin_type_id,
     hair_type_id: form.hair_type_id,
   });
   for (const skinIssueId of arrOfSkinIssueIds) {
     await db("user__skin_issue").insert({
-      user_id: form.user_id,
+      user_id: userId,
       skin_issue_id: skinIssueId,
     });
   }
   for (const hairIssueId of arrOfHairIssueIds) {
     await db("user__hair_issue").insert({
-      user_id: form.user_id,
+      user_id: userId,
       hair_issue_id: hairIssueId,
     });
   }
