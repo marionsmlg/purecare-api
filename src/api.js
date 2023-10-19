@@ -3,6 +3,7 @@ import db from "./scripts/insertDataInDatabase.js";
 import { readBody } from "./utils.js";
 import { firebaseApp } from "./firebaseconfig.js";
 import { getAuth } from "firebase-admin/auth";
+
 const PORT = 3000;
 const server = http.createServer(handleRequest);
 
@@ -69,6 +70,7 @@ async function handleRequest(request, response) {
           const arrOfSkinIssueIds = searchParams.skin_issue_id.split(",");
           const arrOfHairTypeIds = searchParams.hair_type_id.split(",");
           const arrOfHairIssueIds = searchParams.hair_issue_id.split(",");
+
           const skinRecipes = await fetchRecipes(
             searchParams,
             arrOfSkinTypeIds,
@@ -95,15 +97,14 @@ async function handleRequest(request, response) {
           skinIssue: userSkinIssue,
         };
       } else if (requestURLData.pathname === "/api/v1/recipe") {
-        const recipe = await fetchRecipeById(searchParams);
-        const recipePhysicalTrait = await fetchRecipePhysicalTrait(
-          searchParams
-        );
-        const recipeBeautyIssue = await fetchRecipeBeautyIssues(searchParams);
-        const recipeIngredient = await fetchRecipeIngredients(searchParams);
-        const recipeAllergen = await fetchRecipeAllergens(searchParams);
-        const recipeStep = await fetchRecipeSteps(searchParams);
-        const recipeBenefit = await fetchRecipeBenefits(searchParams);
+        const recipeId = await fetchRecipeIdFromSlug(searchParams.slug);
+        const recipe = await fetchRecipeById(recipeId);
+        const recipePhysicalTrait = await fetchRecipePhysicalTrait(recipeId);
+        const recipeBeautyIssue = await fetchRecipeBeautyIssues(recipeId);
+        const recipeIngredient = await fetchRecipeIngredients(recipeId);
+        const recipeAllergen = await fetchRecipeAllergens(recipeId);
+        const recipeStep = await fetchRecipeSteps(recipeId);
+        const recipeBenefit = await fetchRecipeBenefits(recipeId);
         data = {
           recipe: recipe,
           physicalTrait: recipePhysicalTrait,
@@ -204,6 +205,12 @@ async function handleRequest(request, response) {
     response.statusCode = 500;
     response.end("Internal server error");
   }
+}
+
+async function fetchRecipeIdFromSlug(slug) {
+  const arrWithRecipeId = await db("recipe").select("id").where("slug", slug);
+  const recipeId = arrWithRecipeId[0].id;
+  return recipeId;
 }
 
 async function physicalTraitsAndBeautyIssuesExists(searchParams) {
@@ -328,24 +335,24 @@ async function fetchDataFromTable(tableName) {
   return await db(tableName).select("*").orderBy("created_at", "desc");
 }
 
-async function fetchRecipeIngredients(searchParams) {
+async function fetchRecipeIngredients(recipeId) {
   return await db("recipe__ingredient")
     .select("*")
-    .where("recipe_id", searchParams.recipe_id)
+    .where("recipe_id", recipeId)
     .leftJoin("ingredient", "recipe__ingredient.ingredient_id", "ingredient.id")
     .orderBy("ingredient_priority_number");
 }
-async function fetchRecipeSteps(searchParams) {
+async function fetchRecipeSteps(recipeId) {
   return await db("recipe__step")
     .select("*")
-    .where("recipe_id", searchParams.recipe_id)
+    .where("recipe_id", recipeId)
     .orderBy("step_number");
 }
 
-async function fetchRecipeBenefits(searchParams) {
+async function fetchRecipeBenefits(recipeId) {
   return await db("recipe__product_benefit")
     .select("name")
-    .where("recipe_id", searchParams.recipe_id)
+    .where("recipe_id", recipeId)
     .leftJoin(
       "product_benefit",
       "recipe__product_benefit.product_benefit_id",
@@ -353,10 +360,10 @@ async function fetchRecipeBenefits(searchParams) {
     )
     .orderBy("name");
 }
-async function fetchRecipeAllergens(searchParams) {
+async function fetchRecipeAllergens(recipeId) {
   return await db("recipe__product_allergen")
     .select("name")
-    .where("recipe_id", searchParams.recipe_id)
+    .where("recipe_id", recipeId)
     .leftJoin(
       "product_allergen",
       "recipe__product_allergen.product_allergen_id",
@@ -365,10 +372,10 @@ async function fetchRecipeAllergens(searchParams) {
     .orderBy("name");
 }
 
-async function fetchRecipeBeautyIssues(searchParams) {
+async function fetchRecipeBeautyIssues(recipeId) {
   return await db("recipe__beauty_issue")
     .select("name")
-    .where("recipe_id", searchParams.recipe_id)
+    .where("recipe_id", recipeId)
     .leftJoin(
       "beauty_issue",
       "recipe__beauty_issue.beauty_issue_id",
@@ -376,10 +383,10 @@ async function fetchRecipeBeautyIssues(searchParams) {
     )
     .orderBy("name");
 }
-async function fetchRecipePhysicalTrait(searchParams) {
+async function fetchRecipePhysicalTrait(recipeId) {
   return await db("recipe__physical_trait")
     .select("name")
-    .where("recipe_id", searchParams.recipe_id)
+    .where("recipe_id", recipeId)
     .leftJoin(
       "physical_trait",
       "recipe__physical_trait.physical_trait_id",
@@ -399,7 +406,8 @@ async function fetchRecipes(
       "recipe.title",
       "recipe_category.name as recipe_category_name",
       "recipe.img_url",
-      "recipe.preparation_time"
+      "recipe.preparation_time",
+      "recipe.slug"
     )
     .countDistinct("recipe__ingredient.ingredient_id as ingredient_count")
     .innerJoin(
@@ -433,7 +441,7 @@ async function fetchRecipes(
   return await query;
 }
 
-async function fetchRecipeById(searchParams) {
+async function fetchRecipeById(recipeId) {
   return await db
     .select(
       "recipe.id",
@@ -458,5 +466,5 @@ async function fetchRecipeById(searchParams) {
       "product_texture_type.id"
     )
     .join("recipe_category", "recipe.recipe_category_id", "recipe_category.id")
-    .where("recipe.id", searchParams.recipe_id);
+    .where("recipe.id", recipeId);
 }
