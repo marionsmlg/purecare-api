@@ -56,31 +56,11 @@ async function handleRequest(request, response) {
         }
       }
       if (requestURLData.pathname === "/api/v1/recipes") {
-        if (searchParams.physical_trait_id && searchParams.beauty_issue_id) {
-          const arrOfPhysicalTraitIds =
-            searchParams.physical_trait_id.split(",");
-          const arrOfBeautyIssueIds = searchParams.beauty_issue_id.split(",");
-          data = await fetchRecipes(
-            searchParams,
-            arrOfPhysicalTraitIds,
-            arrOfBeautyIssueIds
-          );
+        if (searchParams.beauty_issue_slug) {
+          data = await fetchRecipesByProblem(searchParams);
         } else {
-          const arrOfSkinTypeIds = searchParams.skin_type_id.split(",");
-          const arrOfSkinIssueIds = searchParams.skin_issue_id.split(",");
-          const arrOfHairTypeIds = searchParams.hair_type_id.split(",");
-          const arrOfHairIssueIds = searchParams.hair_issue_id.split(",");
-
-          const skinRecipes = await fetchRecipes(
-            searchParams,
-            arrOfSkinTypeIds,
-            arrOfSkinIssueIds
-          );
-          const hairRecipes = await fetchRecipes(
-            searchParams,
-            arrOfHairTypeIds,
-            arrOfHairIssueIds
-          );
+          const skinRecipes = await fetchRecipes(searchParams);
+          const hairRecipes = await fetchHairRecipes(searchParams);
           data = { skinRecipe: skinRecipes, hairRecipe: hairRecipes };
         }
       } else if (requestURLData.pathname === "/api/user") {
@@ -97,7 +77,7 @@ async function handleRequest(request, response) {
           skinIssue: userSkinIssue,
         };
       } else if (requestURLData.pathname === "/api/v1/recipe") {
-        const recipeId = await fetchRecipeIdFromSlug(searchParams.slug);
+        const recipeId = await fetchIdFromSlug("recipe", searchParams.slug);
         const recipe = await fetchRecipeById(recipeId);
         const recipePhysicalTrait = await fetchRecipePhysicalTrait(recipeId);
         const recipeBeautyIssue = await fetchRecipeBeautyIssues(recipeId);
@@ -207,10 +187,10 @@ async function handleRequest(request, response) {
   }
 }
 
-async function fetchRecipeIdFromSlug(slug) {
-  const arrWithRecipeId = await db("recipe").select("id").where("slug", slug);
-  const recipeId = arrWithRecipeId[0].id;
-  return recipeId;
+async function fetchIdFromSlug(tableName, slug) {
+  const arrWithId = await db(tableName).select("id").where("slug", slug);
+  const id = arrWithId[0].id;
+  return id;
 }
 
 async function physicalTraitsAndBeautyIssuesExists(searchParams) {
@@ -395,11 +375,8 @@ async function fetchRecipePhysicalTrait(recipeId) {
     .orderBy("name");
 }
 
-async function fetchRecipes(
-  searchParams,
-  arrOfPhysicalTraitIds,
-  arrOfBeautyIssueIds
-) {
+async function fetchRecipes(searchParams) {
+  const arrOfSkinIssueIds = searchParams.skin_issue_id.split(",");
   let query = db("recipe")
     .select(
       "recipe.id",
@@ -407,7 +384,8 @@ async function fetchRecipes(
       "recipe_category.name as recipe_category_name",
       "recipe.img_url",
       "recipe.preparation_time",
-      "recipe.slug"
+      "recipe.slug",
+      "recipe_category.slug as recipe_category_slug"
     )
     .countDistinct("recipe__ingredient.ingredient_id as ingredient_count")
     .innerJoin(
@@ -426,15 +404,138 @@ async function fetchRecipes(
       "recipe.recipe_category_id",
       "recipe_category.id"
     )
-    .whereIn("recipe__physical_trait.physical_trait_id", arrOfPhysicalTraitIds)
-    .whereIn("recipe__beauty_issue.beauty_issue_id", arrOfBeautyIssueIds)
+
+    .where(function () {
+      this.where(function () {
+        this.whereIn(
+          "recipe__beauty_issue.beauty_issue_id",
+          arrOfSkinIssueIds
+        ).orWhere(
+          "recipe__beauty_issue.beauty_issue_id",
+          "1ddab218-5489-4891-8fbb-1c7061271dc8"
+        );
+      }).andWhere(function () {
+        this.whereIn("recipe__physical_trait.physical_trait_id", [
+          searchParams.skin_type_id,
+          "b9f90678-ea3f-4fde-952f-a26a88e13259",
+        ]);
+      });
+    })
     .groupBy(
       "recipe.id",
       "recipe.title",
       "recipe.recipe_category_id",
       "recipe_category.name",
       "recipe.img_url",
-      "recipe.preparation_time"
+      "recipe.preparation_time",
+      "recipe_category_slug"
+    )
+    .limit(searchParams.limit);
+
+  return await query;
+}
+
+async function fetchHairRecipes(searchParams) {
+  const arrOfHairIssueIds = searchParams.hair_issue_id.split(",");
+
+  let query = db("recipe")
+    .select(
+      "recipe.id",
+      "recipe.title",
+      "recipe_category.name as recipe_category_name",
+      "recipe.img_url",
+      "recipe.preparation_time",
+      "recipe.slug",
+      "recipe_category.slug as recipe_category_slug"
+    )
+    .countDistinct("recipe__ingredient.ingredient_id as ingredient_count")
+    .innerJoin(
+      "recipe__beauty_issue",
+      "recipe.id",
+      "recipe__beauty_issue.recipe_id"
+    )
+    .innerJoin(
+      "recipe__physical_trait",
+      "recipe.id",
+      "recipe__physical_trait.recipe_id"
+    )
+    .leftJoin("recipe__ingredient", "recipe.id", "recipe__ingredient.recipe_id")
+    .leftJoin(
+      "recipe_category",
+      "recipe.recipe_category_id",
+      "recipe_category.id"
+    )
+    .where(function () {
+      this.where(function () {
+        this.whereIn(
+          "recipe__beauty_issue.beauty_issue_id",
+          arrOfHairIssueIds
+        ).orWhere(
+          "recipe__beauty_issue.beauty_issue_id",
+          "77b4ae6d-a31f-4de5-a731-1249cd87eeff"
+        );
+      }).andWhere(function () {
+        this.whereIn("recipe__physical_trait.physical_trait_id", [
+          searchParams.hair_type_id,
+          "c8898a24-04cb-4b1f-bb8b-38633aa3c670",
+        ]);
+      });
+    })
+    .groupBy(
+      "recipe.id",
+      "recipe.title",
+      "recipe.recipe_category_id",
+      "recipe_category.name",
+      "recipe.img_url",
+      "recipe.preparation_time",
+      "recipe_category_slug"
+    )
+    .limit(searchParams.limit);
+
+  return await query;
+}
+async function fetchRecipesByProblem(searchParams) {
+  const beautyIssueId = await fetchIdFromSlug(
+    "beauty_issue",
+    searchParams.beauty_issue_slug
+  );
+  let query = db("recipe")
+    .select(
+      "recipe.id",
+      "recipe.title",
+      "recipe_category.name as recipe_category_name",
+      "recipe.img_url",
+      "recipe.preparation_time",
+      "recipe.slug",
+      "recipe_category.slug as recipe_category_slug"
+    )
+    .countDistinct("recipe__ingredient.ingredient_id as ingredient_count")
+    .innerJoin(
+      "recipe__beauty_issue",
+      "recipe.id",
+      "recipe__beauty_issue.recipe_id"
+    )
+    .innerJoin(
+      "recipe__physical_trait",
+      "recipe.id",
+      "recipe__physical_trait.recipe_id"
+    )
+    .leftJoin("recipe__ingredient", "recipe.id", "recipe__ingredient.recipe_id")
+    .leftJoin(
+      "recipe_category",
+      "recipe.recipe_category_id",
+      "recipe_category.id"
+    )
+    .where("recipe__beauty_issue.beauty_issue_id", beautyIssueId)
+
+    .groupBy(
+      "recipe.id",
+      "recipe.title",
+      "recipe.recipe_category_id",
+      "recipe_category.name",
+      "recipe.img_url",
+      "recipe.preparation_time",
+      "recipe_category_slug"
     )
     .limit(searchParams.limit);
 
