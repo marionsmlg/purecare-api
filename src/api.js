@@ -34,7 +34,6 @@ async function handleRequest(request, response) {
 
     const apiEndpoints = {
       "/api/recipe-category": "recipe_category",
-      "/api/physical-trait": "physical_trait",
     };
 
     if (requestURLData.pathname === "/") {
@@ -70,11 +69,16 @@ async function handleRequest(request, response) {
           fetchBeautyIssues("Cheveux"),
           fetchBeautyIssues("Visage"),
         ]);
-
         data = { hairIssue: hairIssue, skinIssue: skinIssue };
+      } else if (requestURLData.pathname === "/api/v1/skin-types") {
+        data = await fetchSkinTypes();
+      } else if (requestURLData.pathname === "/api/v1/hair-types") {
+        data = await fetchHairTypes("Cheveux");
       } else if (requestURLData.pathname === "/api/quiz-data-exists") {
         data = await physicalTraitsAndBeautyIssuesExists(searchParams);
-      } else if (requestURLData.pathname === "/api/v1/users") {
+      } else if (requestURLData.pathname === "/api/v1/beauty-profile") {
+        data = await fetchBeautyProfile(searchParams);
+      } else if (requestURLData.pathname === "/api/v1/user-beauty-profile") {
         const [userPhysicalTrait, userHairIssue, userSkinIssue] =
           await Promise.all([
             fetchUserPhysicalTraits(searchParams),
@@ -209,6 +213,41 @@ async function handleRequest(request, response) {
   }
 }
 
+async function fetchSkinTypes() {
+  return await db("physical_trait")
+    .select(
+      "physical_trait.id",
+      "physical_trait.name",
+      "physical_trait.slug",
+      "physical_trait.description",
+      "recipe_category.name as recipe_category_name"
+    )
+    .leftJoin(
+      "recipe_category",
+      "physical_trait.recipe_category_id",
+      "recipe_category.id"
+    )
+    .where("recipe_category.name", "Visage")
+    .whereNot("physical_trait.name", "Tous types");
+}
+
+async function fetchHairTypes() {
+  return await db("physical_trait")
+    .select(
+      "physical_trait.id",
+      "physical_trait.name",
+      "physical_trait.slug",
+      "recipe_category.name as recipe_category_name"
+    )
+    .leftJoin(
+      "recipe_category",
+      "physical_trait.recipe_category_id",
+      "recipe_category.id"
+    )
+    .where("recipe_category.name", "Cheveux")
+    .whereNot("physical_trait.name", "Tous types");
+}
+
 async function fetchBeautyIssues(categoryName) {
   return await db("beauty_issue")
     .select(
@@ -297,6 +336,36 @@ async function fetchUserPhysicalTraits(searchParams) {
       .select("skin_type_id", "hair_type_id")
       .where("user_id", searchParams.user_id);
     return query;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
+async function fetchBeautyProfile(searchParams) {
+  const arrOfSkinIssueIds = searchParams.skin_issue_id.split(",");
+  const arrOfHairIssueIds = searchParams.hair_issue_id.split(",");
+  try {
+    const skinType = await db("physical_trait")
+      .select("physical_trait.id", "physical_trait.name")
+      .where("id", searchParams.skin_type_id);
+
+    const hairType = await db("physical_trait")
+      .select("physical_trait.id", "physical_trait.name")
+      .where("id", searchParams.hair_type_id);
+
+    const hairIssue = await db("beauty_issue")
+      .select("beauty_issue.id", "beauty_issue.name")
+      .whereIn("id", arrOfHairIssueIds);
+    const skinIssue = await db("beauty_issue")
+      .select("beauty_issue.id", "beauty_issue.name")
+      .whereIn("id", arrOfSkinIssueIds);
+
+    return {
+      skinType: skinType,
+      hairType: hairType,
+      skinIssue: skinIssue,
+      hairIssue: hairIssue,
+    };
   } catch (error) {
     console.error(error);
     throw error;
@@ -559,7 +628,8 @@ async function fetchRecipesByProblem(searchParams) {
       "recipe.img_url",
       "recipe.preparation_time",
       "recipe.slug",
-      "recipe_category.slug as recipe_category_slug"
+      "recipe_category.slug as recipe_category_slug",
+      "beauty_issue.name as beauty_issue_name"
     )
     .countDistinct("recipe__ingredient.ingredient_id as ingredient_count")
     .innerJoin(
