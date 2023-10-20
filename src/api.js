@@ -58,20 +58,30 @@ async function handleRequest(request, response) {
         if (searchParams.beauty_issue_slug) {
           data = await fetchRecipesByProblem(searchParams);
         } else {
-          const skinRecipes = await fetchRecipes(searchParams);
-          const hairRecipes = await fetchHairRecipes(searchParams);
+          const [skinRecipes, hairRecipes] = await Promise.all([
+            fetchSkinRecipes(searchParams),
+            fetchHairRecipes(searchParams),
+          ]);
+
           data = { skinRecipe: skinRecipes, hairRecipe: hairRecipes };
         }
       } else if (requestURLData.pathname === "/api/v1/beauty-issue") {
-        const hairIssue = await fetchBeautyIssues("Cheveux");
-        const skinIssue = await fetchBeautyIssues("Visage");
+        const [hairIssue, skinIssue] = await Promise.all([
+          fetchBeautyIssues("Cheveux"),
+          fetchBeautyIssues("Visage"),
+        ]);
+
         data = { hairIssue: hairIssue, skinIssue: skinIssue };
       } else if (requestURLData.pathname === "/api/quiz-data-exists") {
         data = await physicalTraitsAndBeautyIssuesExists(searchParams);
       } else if (requestURLData.pathname === "/api/v1/users") {
-        const userPhysicalTrait = await fetchUserPhysicalTraits(searchParams);
-        const userHairIssue = await fetchUserHairIssueId(searchParams);
-        const userSkinIssue = await fetchUserSkinIssueId(searchParams);
+        const [userPhysicalTrait, userHairIssue, userSkinIssue] =
+          await Promise.all([
+            fetchUserPhysicalTraits(searchParams),
+            fetchUserHairIssueId(searchParams),
+            await fetchUserSkinIssueId(searchParams),
+          ]);
+
         data = {
           physicalTrait: userPhysicalTrait,
           hairIssue: userHairIssue,
@@ -79,13 +89,24 @@ async function handleRequest(request, response) {
         };
       } else if (requestURLData.pathname === "/api/v1/recipe") {
         const recipeId = await fetchIdFromSlug("recipe", searchParams.slug);
-        const recipe = await fetchRecipeById(recipeId);
-        const recipePhysicalTrait = await fetchRecipePhysicalTrait(recipeId);
-        const recipeBeautyIssue = await fetchRecipeBeautyIssues(recipeId);
-        const recipeIngredient = await fetchRecipeIngredients(recipeId);
-        const recipeAllergen = await fetchRecipeAllergens(recipeId);
-        const recipeStep = await fetchRecipeSteps(recipeId);
-        const recipeBenefit = await fetchRecipeBenefits(recipeId);
+        const [
+          recipe,
+          recipePhysicalTrait,
+          recipeBeautyIssue,
+          recipeIngredient,
+          recipeAllergen,
+          recipeStep,
+          recipeBenefit,
+        ] = await Promise.all([
+          fetchRecipeById(recipeId),
+          fetchRecipePhysicalTrait(recipeId),
+          fetchRecipeBeautyIssues(recipeId),
+          fetchRecipeIngredients(recipeId),
+          fetchRecipeAllergens(recipeId),
+          fetchRecipeSteps(recipeId),
+          fetchRecipeBenefits(recipeId),
+        ]);
+
         data = {
           recipe: recipe,
           physicalTrait: recipePhysicalTrait,
@@ -400,7 +421,7 @@ async function fetchRecipePhysicalTrait(recipeId) {
     .orderBy("name");
 }
 
-async function fetchRecipes(searchParams) {
+async function fetchSkinRecipes(searchParams) {
   const arrOfSkinIssueIds = searchParams.skin_issue_id.split(",");
   let query = db("recipe")
     .select(
