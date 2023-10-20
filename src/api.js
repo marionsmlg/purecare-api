@@ -476,6 +476,9 @@ async function fetchSkinRecipes(searchParams) {
       "recipe.preparation_time",
       "recipe_category_slug"
     )
+    .distinct()
+    .orderBy("recipe.title")
+
     .limit(searchParams.limit);
 
   return await query;
@@ -536,10 +539,13 @@ async function fetchHairRecipes(searchParams) {
       "recipe.preparation_time",
       "recipe_category_slug"
     )
+    .distinct()
+    .orderBy("recipe.title")
     .limit(searchParams.limit);
 
   return await query;
 }
+
 async function fetchRecipesByProblem(searchParams) {
   const beautyIssueId = await fetchIdFromSlug(
     "beauty_issue",
@@ -553,8 +559,7 @@ async function fetchRecipesByProblem(searchParams) {
       "recipe.img_url",
       "recipe.preparation_time",
       "recipe.slug",
-      "recipe_category.slug as recipe_category_slug",
-      "beauty_issue.name as beauty_issue_name"
+      "recipe_category.slug as recipe_category_slug"
     )
     .countDistinct("recipe__ingredient.ingredient_id as ingredient_count")
     .innerJoin(
@@ -588,6 +593,7 @@ async function fetchRecipesByProblem(searchParams) {
       "recipe_category_slug",
       "beauty_issue.name"
     )
+    .distinct()
     .limit(searchParams.limit);
 
   return await query;
