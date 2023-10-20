@@ -34,7 +34,6 @@ async function handleRequest(request, response) {
 
     const apiEndpoints = {
       "/api/recipe-category": "recipe_category",
-      "/api/beauty-issue": "beauty_issue",
       "/api/physical-trait": "physical_trait",
     };
 
@@ -63,8 +62,10 @@ async function handleRequest(request, response) {
           const hairRecipes = await fetchHairRecipes(searchParams);
           data = { skinRecipe: skinRecipes, hairRecipe: hairRecipes };
         }
-      } else if (requestURLData.pathname === "/api/user") {
-        data = await userExists(searchParams);
+      } else if (requestURLData.pathname === "/api/v1/beauty-issue") {
+        const hairIssue = await fetchBeautyIssues("Cheveux");
+        const skinIssue = await fetchBeautyIssues("Visage");
+        data = { hairIssue: hairIssue, skinIssue: skinIssue };
       } else if (requestURLData.pathname === "/api/quiz-data-exists") {
         data = await physicalTraitsAndBeautyIssuesExists(searchParams);
       } else if (requestURLData.pathname === "/api/v1/users") {
@@ -187,6 +188,22 @@ async function handleRequest(request, response) {
   }
 }
 
+async function fetchBeautyIssues(categoryName) {
+  return await db("beauty_issue")
+    .select(
+      "beauty_issue.id",
+      "beauty_issue.name",
+      "beauty_issue.slug",
+      "recipe_category.name as recipe_category_name"
+    )
+    .leftJoin(
+      "recipe_category",
+      "beauty_issue.recipe_category_id",
+      "recipe_category.id"
+    )
+    .where("recipe_category.name", categoryName);
+}
+
 async function fetchIdFromSlug(tableName, slug) {
   const arrWithId = await db(tableName).select("id").where("slug", slug);
   const id = arrWithId[0].id;
@@ -230,31 +247,39 @@ async function physicalTraitsAndBeautyIssuesExists(searchParams) {
   }
 }
 
-async function userExists(searchParams) {
+async function fetchUserHairIssueId(searchParams) {
   try {
-    const result = await db("user_physical_trait")
-      .select("user_id")
+    const query = await db("user__hair_issue")
+      .select("hair_issue_id")
       .where("user_id", searchParams.user_id);
-    return result.length > 0;
+    return query;
   } catch (error) {
     console.error(error);
     throw error;
   }
 }
-async function fetchUserHairIssueId(searchParams) {
-  return await db("user__hair_issue")
-    .select("hair_issue_id")
-    .where("user_id", searchParams.user_id);
-}
+
 async function fetchUserSkinIssueId(searchParams) {
-  return await db("user__skin_issue")
-    .select("skin_issue_id")
-    .where("user_id", searchParams.user_id);
+  try {
+    const query = await db("user__skin_issue")
+      .select("skin_issue_id")
+      .where("user_id", searchParams.user_id);
+    return query;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
 }
 async function fetchUserPhysicalTraits(searchParams) {
-  return await db("user_physical_trait")
-    .select("skin_type_id", "hair_type_id")
-    .where("user_id", searchParams.user_id);
+  try {
+    const query = await db("user_physical_trait")
+      .select("skin_type_id", "hair_type_id")
+      .where("user_id", searchParams.user_id);
+    return query;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
 }
 
 async function deleteUserBeautyProfile(userId) {
@@ -507,7 +532,8 @@ async function fetchRecipesByProblem(searchParams) {
       "recipe.img_url",
       "recipe.preparation_time",
       "recipe.slug",
-      "recipe_category.slug as recipe_category_slug"
+      "recipe_category.slug as recipe_category_slug",
+      "beauty_issue.name as beauty_issue_name"
     )
     .countDistinct("recipe__ingredient.ingredient_id as ingredient_count")
     .innerJoin(
@@ -526,6 +552,9 @@ async function fetchRecipesByProblem(searchParams) {
       "recipe.recipe_category_id",
       "recipe_category.id"
     )
+    .leftJoin("beauty_issue", function () {
+      this.on("beauty_issue.id", "=", "recipe__beauty_issue.beauty_issue_id");
+    })
     .where("recipe__beauty_issue.beauty_issue_id", beautyIssueId)
 
     .groupBy(
@@ -535,7 +564,8 @@ async function fetchRecipesByProblem(searchParams) {
       "recipe_category.name",
       "recipe.img_url",
       "recipe.preparation_time",
-      "recipe_category_slug"
+      "recipe_category_slug",
+      "beauty_issue.name"
     )
     .limit(searchParams.limit);
 
