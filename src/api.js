@@ -33,7 +33,7 @@ async function handleRequest(request, response) {
     const body = await readBody(request);
 
     const apiEndpoints = {
-      "/api/recipe-category": "recipe_category",
+      "/api/v1/recipe-category": "recipe_category",
     };
 
     if (requestURLData.pathname === "/") {
@@ -74,7 +74,7 @@ async function handleRequest(request, response) {
         data = await fetchSkinTypes();
       } else if (requestURLData.pathname === "/api/v1/hair-types") {
         data = await fetchHairTypes("Cheveux");
-      } else if (requestURLData.pathname === "/api/quiz-data-exists") {
+      } else if (requestURLData.pathname === "/api/v1/quiz-data-exists") {
         data = await physicalTraitsAndBeautyIssuesExists(searchParams);
       } else if (requestURLData.pathname === "/api/v1/beauty-profile") {
         data = await fetchBeautyProfile(searchParams);
