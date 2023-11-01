@@ -79,11 +79,15 @@ async function handleRequest(request, response) {
       } else if (requestURLData.pathname === "/api/v1/beauty-profile") {
         data = await fetchBeautyProfile(searchParams);
       } else if (requestURLData.pathname === "/api/v1/user-beauty-profile") {
+        const decodedToken = await getAuth(firebaseApp).verifyIdToken(
+          searchParams.user_token
+        );
+        const currentUserId = decodedToken.uid;
         const [userPhysicalTrait, userHairIssue, userSkinIssue] =
           await Promise.all([
-            fetchUserPhysicalTraits(searchParams),
-            fetchUserHairIssueId(searchParams),
-            await fetchUserSkinIssueId(searchParams),
+            fetchUserPhysicalTraits(currentUserId),
+            fetchUserHairIssueId(currentUserId),
+            await fetchUserSkinIssueId(currentUserId),
           ]);
 
         data = {
@@ -140,6 +144,7 @@ async function handleRequest(request, response) {
             userToken
           );
           const currentUserId = decodedToken.uid;
+
           await insertUserPhysicalTrait(form, currentUserId);
 
           response.statusCode = 302;
@@ -307,11 +312,11 @@ async function physicalTraitsAndBeautyIssuesExists(searchParams) {
   }
 }
 
-async function fetchUserHairIssueId(searchParams) {
+async function fetchUserHairIssueId(currentUserId) {
   try {
     const query = await db("user__hair_issue")
       .select("hair_issue_id")
-      .where("user_id", searchParams.user_id);
+      .where("user_id", currentUserId);
     return query;
   } catch (error) {
     console.error(error);
@@ -319,22 +324,22 @@ async function fetchUserHairIssueId(searchParams) {
   }
 }
 
-async function fetchUserSkinIssueId(searchParams) {
+async function fetchUserSkinIssueId(currentUserId) {
   try {
     const query = await db("user__skin_issue")
       .select("skin_issue_id")
-      .where("user_id", searchParams.user_id);
+      .where("user_id", currentUserId);
     return query;
   } catch (error) {
     console.error(error);
     throw error;
   }
 }
-async function fetchUserPhysicalTraits(searchParams) {
+async function fetchUserPhysicalTraits(currentUserId) {
   try {
     const query = await db("user_physical_trait")
       .select("skin_type_id", "hair_type_id")
-      .where("user_id", searchParams.user_id);
+      .where("user_id", currentUserId);
     return query;
   } catch (error) {
     console.error(error);
@@ -406,6 +411,7 @@ async function updateUserBeautyProfile(form, userId) {
 async function insertUserPhysicalTrait(form, userId) {
   const arrOfSkinIssueIds = form.skin_issue_id.split(",");
   const arrOfHairIssueIds = form.hair_issue_id.split(",");
+  console.log({ arrOfHairIssueIds, arrOfSkinIssueIds });
   await db("user_physical_trait").insert({
     user_id: userId,
     skin_type_id: form.skin_type_id,
