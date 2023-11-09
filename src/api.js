@@ -74,8 +74,6 @@ async function handleRequest(request, response) {
         data = await fetchSkinTypes();
       } else if (requestURLData.pathname === "/api/v1/hair-types") {
         data = await fetchHairTypes("Cheveux");
-      } else if (requestURLData.pathname === "/api/v1/quiz-data-exists") {
-        data = await physicalTraitsAndBeautyIssuesExists(searchParams);
       } else if (requestURLData.pathname === "/api/v1/beauty-profile") {
         data = await fetchBeautyProfile(searchParams);
       } else if (requestURLData.pathname === "/api/v1/user-beauty-profile") {
@@ -83,6 +81,7 @@ async function handleRequest(request, response) {
           searchParams.user_token
         );
         const currentUserId = decodedToken.uid;
+
         const [userPhysicalTrait, userHairIssue, userSkinIssue] =
           await Promise.all([
             fetchUserPhysicalTraits(currentUserId),
@@ -144,8 +143,10 @@ async function handleRequest(request, response) {
             userToken
           );
           const currentUserId = decodedToken.uid;
-
-          await insertUserPhysicalTrait(form, currentUserId);
+          const dataExists = physicalTraitsAndBeautyIssuesExists(form);
+          if (dataExists) {
+            await insertUserPhysicalTrait(form, currentUserId);
+          }
 
           response.statusCode = 302;
           response.end();
@@ -174,7 +175,11 @@ async function handleRequest(request, response) {
             userToken
           );
           const currentUserId = decodedToken.uid;
-          await updateUserBeautyProfile(form, currentUserId);
+          const dataExists = physicalTraitsAndBeautyIssuesExists(form);
+          if (dataExists) {
+            await updateUserBeautyProfile(form, currentUserId);
+          }
+
           response.statusCode = 302;
           response.end();
         } catch (error) {
@@ -275,18 +280,18 @@ async function fetchIdFromSlug(tableName, slug) {
   return id;
 }
 
-async function physicalTraitsAndBeautyIssuesExists(searchParams) {
-  const arrOfSkinIssueIds = searchParams.skin_issue_id.split(",");
-  const arrOfHairIssueIds = searchParams.hair_issue_id.split(",");
+async function physicalTraitsAndBeautyIssuesExists(form) {
+  const arrOfSkinIssueIds = form.skin_issue_id.split(",");
+  const arrOfHairIssueIds = form.hair_issue_id.split(",");
 
   try {
     const resultSkinType = await db("physical_trait")
       .select("id")
-      .where("id", searchParams.skin_type_id);
+      .where("id", form.skin_type_id);
 
     const resultHairType = await db("physical_trait")
       .select("id")
-      .where("id", searchParams.hair_type_id);
+      .where("id", form.hair_type_id);
     for (const skinIssueId of arrOfSkinIssueIds) {
       const resultSkinIssue = await db("beauty_issue")
         .select("id")
