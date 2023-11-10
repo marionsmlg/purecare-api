@@ -61,8 +61,12 @@ async function handleRequest(request, response) {
             fetchSkinRecipes(searchParams),
             fetchHairRecipes(searchParams),
           ]);
-
-          data = { skinRecipe: skinRecipes, hairRecipe: hairRecipes };
+          const dataExists = await physicalTraitsAndBeautyIssuesExists(
+            searchParams
+          );
+          if (dataExists) {
+            data = { skinRecipe: skinRecipes, hairRecipe: hairRecipes };
+          }
         }
       } else if (requestURLData.pathname === "/api/v1/beauty-issue") {
         const [hairIssue, skinIssue] = await Promise.all([
@@ -118,20 +122,16 @@ async function handleRequest(request, response) {
           fetchRecipeSteps(recipeId),
           fetchRecipeBenefits(recipeId),
         ]);
-        const dataExists = await physicalTraitsAndBeautyIssuesExists(
-          searchParams
-        );
-        if (dataExists) {
-          data = {
-            recipe: recipe,
-            physicalTrait: recipePhysicalTrait,
-            beautyIssue: recipeBeautyIssue,
-            ingredient: recipeIngredient,
-            allergen: recipeAllergen,
-            step: recipeStep,
-            benefit: recipeBenefit,
-          };
-        }
+
+        data = {
+          recipe: recipe,
+          physicalTrait: recipePhysicalTrait,
+          beautyIssue: recipeBeautyIssue,
+          ingredient: recipeIngredient,
+          allergen: recipeAllergen,
+          step: recipeStep,
+          benefit: recipeBenefit,
+        };
       }
       response.statusCode = 200;
       response.end(JSON.stringify(data));
