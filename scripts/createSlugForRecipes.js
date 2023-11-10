@@ -1,4 +1,4 @@
-import db from "./insertDataInDatabase.js";
+import db from "src/db.js";
 import { slugifyWithCounter } from "@sindresorhus/slugify";
 const slugify = slugifyWithCounter();
 

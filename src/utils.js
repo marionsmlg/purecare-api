@@ -1,5 +1,3 @@
-import fs from "fs/promises";
-
 export async function readBody(request) {
   return new Promise((resolve, reject) => {
     let body = "";

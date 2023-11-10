@@ -1,5 +1,5 @@
 import http from "http";
-import db from "./scripts/insertDataInDatabase.js";
+import db from "./db.js";
 import { readBody } from "./utils.js";
 import { firebaseApp } from "./firebaseconfig.js";
 import { getAuth } from "firebase-admin/auth";

@@ -1,19 +1,6 @@
-import knex from "knex";
 import fs from "fs/promises";
 import { readFile } from "fs/promises";
-import "dotenv/config";
-
-const db = knex({
-  client: "pg",
-  connection: {
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    port: process.env.DB_PORT,
-  },
-});
-export default db;
+import db from "src/db.js";
 
 async function insertData() {
   // const data = await readJSON(jsonPath)
