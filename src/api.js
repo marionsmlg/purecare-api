@@ -75,7 +75,10 @@ async function handleRequest(request, response) {
       } else if (requestURLData.pathname === "/api/v1/hair-types") {
         data = await fetchHairTypes("Cheveux");
       } else if (requestURLData.pathname === "/api/v1/beauty-profile") {
-        data = await fetchBeautyProfile(searchParams);
+        const dataExists = physicalTraitsAndBeautyIssuesExists(searchParams);
+        if (dataExists) {
+          data = await fetchBeautyProfile(searchParams);
+        }
       } else if (requestURLData.pathname === "/api/v1/user-beauty-profile") {
         const decodedToken = await getAuth(firebaseApp).verifyIdToken(
           searchParams.user_token
@@ -113,16 +116,18 @@ async function handleRequest(request, response) {
           fetchRecipeSteps(recipeId),
           fetchRecipeBenefits(recipeId),
         ]);
-
-        data = {
-          recipe: recipe,
-          physicalTrait: recipePhysicalTrait,
-          beautyIssue: recipeBeautyIssue,
-          ingredient: recipeIngredient,
-          allergen: recipeAllergen,
-          step: recipeStep,
-          benefit: recipeBenefit,
-        };
+        const dataExists = physicalTraitsAndBeautyIssuesExists(searchParams);
+        if (dataExists) {
+          data = {
+            recipe: recipe,
+            physicalTrait: recipePhysicalTrait,
+            beautyIssue: recipeBeautyIssue,
+            ingredient: recipeIngredient,
+            allergen: recipeAllergen,
+            step: recipeStep,
+            benefit: recipeBenefit,
+          };
+        }
       }
       response.statusCode = 200;
       response.end(JSON.stringify(data));
