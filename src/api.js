@@ -75,7 +75,9 @@ async function handleRequest(request, response) {
       } else if (requestURLData.pathname === "/api/v1/hair-types") {
         data = await fetchHairTypes("Cheveux");
       } else if (requestURLData.pathname === "/api/v1/beauty-profile") {
-        const dataExists = physicalTraitsAndBeautyIssuesExists(searchParams);
+        const dataExists = await physicalTraitsAndBeautyIssuesExists(
+          searchParams
+        );
         if (dataExists) {
           data = await fetchBeautyProfile(searchParams);
         }
@@ -116,7 +118,9 @@ async function handleRequest(request, response) {
           fetchRecipeSteps(recipeId),
           fetchRecipeBenefits(recipeId),
         ]);
-        const dataExists = physicalTraitsAndBeautyIssuesExists(searchParams);
+        const dataExists = await physicalTraitsAndBeautyIssuesExists(
+          searchParams
+        );
         if (dataExists) {
           data = {
             recipe: recipe,
@@ -148,7 +152,7 @@ async function handleRequest(request, response) {
             userToken
           );
           const currentUserId = decodedToken.uid;
-          const dataExists = physicalTraitsAndBeautyIssuesExists(form);
+          const dataExists = await physicalTraitsAndBeautyIssuesExists(form);
           if (dataExists) {
             await insertUserPhysicalTrait(form, currentUserId);
           }
@@ -180,7 +184,7 @@ async function handleRequest(request, response) {
             userToken
           );
           const currentUserId = decodedToken.uid;
-          const dataExists = physicalTraitsAndBeautyIssuesExists(form);
+          const dataExists = await physicalTraitsAndBeautyIssuesExists(form);
           if (dataExists) {
             await updateUserBeautyProfile(form, currentUserId);
           }
